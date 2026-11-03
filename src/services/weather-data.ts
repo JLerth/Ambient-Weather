@@ -47,6 +47,25 @@ function getTemperatureRange(
     };
 }
 
+/**
+ * Obtiene la máxima y mínima del día actual desde raw.hl.
+ */
+function getTodayTemperatureRange(
+    raw: WeatherData
+): TemperatureRange {
+    const temperature = raw.hl?.tempf;
+
+    return {
+        high: typeof temperature?.h === "number"
+            ? roundValue(fahrenheitToCelsius(temperature.h))
+            : null,
+
+        low: typeof temperature?.l === "number"
+            ? roundValue(fahrenheitToCelsius(temperature.l))
+            : null,
+    };
+}
+
 /*
  * Busca una medición de ayer cercana a la misma hora.
  * Solo acepta registros separados aproximadamente por 24 horas.
@@ -113,6 +132,39 @@ function calculatePressureRate(
 }
 
 /**
+ * Obtiene la fecha de un registro en la zona horaria de la estación.
+ */
+function getStationDate(timestamp: number): string {
+    const parts = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "America/Guayaquil",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+    }).formatToParts(new Date(timestamp));
+
+    const year = parts.find((part) => part.type === "year")!.value;
+    const month = parts.find((part) => part.type === "month")!.value;
+    const day = parts.find((part) => part.type === "day")!.value;
+
+    return `${year}-${month}-${day}`;
+}
+
+/**
+ * Desplaza una fecha calendario sin depender de la zona horaria del dispositivo.
+ */
+function addDays(date: string, amount: number): string {
+    const [year, month, day] = date.split("-").map(Number);
+
+    const result = new Date(Date.UTC(year, month - 1, day + amount));
+
+    return [
+        result.getUTCFullYear(),
+        String(result.getUTCMonth() + 1).padStart(2, "0"),
+        String(result.getUTCDate()).padStart(2, "0"),
+    ].join("-");
+}
+
+/**
  * Obtiene los datos meteorológicos preparados para el dashboard.
  */
 export async function getWeatherData(): Promise<WeatherDashboardData> {
@@ -123,26 +175,29 @@ export async function getWeatherData(): Promise<WeatherDashboardData> {
         getPressureLastHour(),
     ]);
 
-    const today = summaries[0] ? [summaries[0]] : [];
-    const yesterday = summaries[1] ? [summaries[1]] : [];
-    const weekly = summaries.slice(0, 7);
+    const currentDate = getStationDate(raw.dateutc);
+
+    const yesterdayDate = addDays(currentDate, -1);
+
+    const yesterday = summaries.filter(
+        (item) => getStationDate(item.dateutc) === yesterdayDate
+    );
+
+    // Últimos siete días calendario, incluyendo hoy.
+    const weeklyStartDate = addDays(currentDate, -6);
+
+    const weekly = summaries.filter((item) => {
+        const date = getStationDate(item.dateutc);
+
+        return date >= weeklyStartDate && date <= currentDate;
+    });
 
     // La fecha del equipo debe interpretarse en la zona horaria de la estación.
-    const stationDate = new Intl.DateTimeFormat("en-CA", {
-        timeZone: "America/Guayaquil",
-        year: "numeric",
-        month: "2-digit",
-    }).format(new Date(raw.dateutc));
+    const currentMonth = currentDate.slice(0, 7);
 
-    const monthly = summaries.filter((item) => {
-        const itemMonth = new Intl.DateTimeFormat("en-CA", {
-            timeZone: "America/Guayaquil",
-            year: "numeric",
-            month: "2-digit",
-        }).format(new Date(item.dateutc));
-
-        return itemMonth === stationDate;
-    });
+    const monthly = summaries.filter(
+        (item) => getStationDate(item.dateutc).slice(0, 7) === currentMonth
+    );
 
     // No calculamos extremos anuales sin cobertura suficiente.
     const yearly: DeviceSummary[] = [];
@@ -152,7 +207,11 @@ export async function getWeatherData(): Promise<WeatherDashboardData> {
     const temperatureFromYesterday =
         previousMeasurement?.tempf !== undefined &&
         raw.tempf !== undefined
-            ? roundValue(raw.tempf - previousMeasurement.tempf, 1)
+            ? roundValue(
+                fahrenheitToCelsius(raw.tempf) -
+                fahrenheitToCelsius(previousMeasurement.tempf),
+                1
+            )
             : null;
 
     const humidityFromYesterday =
@@ -244,7 +303,7 @@ export async function getWeatherData(): Promise<WeatherDashboardData> {
         },
 
         historical: {
-            today: getTemperatureRange(today),
+            today: getTodayTemperatureRange(raw),
             yesterday: getTemperatureRange(yesterday),
             weekly: getTemperatureRange(weekly),
             monthly: getTemperatureRange(monthly),
