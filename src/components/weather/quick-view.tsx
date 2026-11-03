@@ -12,22 +12,6 @@ function formatValue(value: number | null | undefined, decimals = 1): string {
     return value.toFixed(decimals);
 }
 
-function celsiusToFahrenheit(value: number | null): number | null {
-    return value === null ? null : (value * 9) / 5 + 32;
-}
-
-function kmhToMph(value: number | null): number | null {
-    return value === null ? null : value / 1.609344;
-}
-
-function mmToInches(value: number | null): number | null {
-    return value === null ? null : value / 25.4;
-}
-
-function hpaToInHg(value: number | null): number | null {
-    return value === null ? null : value / 33.8638866667;
-}
-
 function TemperatureRange({
     high,
     low,
@@ -37,8 +21,7 @@ function TemperatureRange({
 }) {
     return (
         <span>
-            {formatValue(celsiusToFahrenheit(high))}°F /{" "}
-            {formatValue(celsiusToFahrenheit(low))}°F
+            {formatValue(high)}°C / {formatValue(low)}°C
         </span>
     );
 }
@@ -88,19 +71,19 @@ export function QuickView({ data }: QuickViewProps) {
                 <QuickSection title="Outdoor">
                     <QuickMetric
                         label="Temperature"
-                        value={`${formatValue(celsiusToFahrenheit(outdoor.temperature))}°F`}
+                        value={`${formatValue(outdoor.temperature)}°C`}
                     />
                     <QuickMetric 
                         label="From Yesterday" 
                         value={
                             data.changes.temperatureFromYesterday === null
                                 ? "—"
-                                : `${data.changes.temperatureFromYesterday > 0 ? "+" : ""}${formatValue(data.changes.temperatureFromYesterday * 9 / 5)}°F`
-                            }
+                                : `${data.changes.temperatureFromYesterday > 0 ? "+" : ""}${formatValue(data.changes.temperatureFromYesterday)}°C`
+                        }
                     />
                     <QuickMetric
                         label="Feels Like"
-                        value={`${formatValue(celsiusToFahrenheit(outdoor.feelsLike))}°F`}
+                        value={`${formatValue(outdoor.feelsLike)}°C`}
                     />
                     <QuickMetric
                         label="Today's High/Low"
@@ -152,15 +135,15 @@ export function QuickView({ data }: QuickViewProps) {
                 <QuickSection title="Wind">
                     <QuickMetric
                         label="Speed"
-                        value={`${formatValue(kmhToMph(wind.speed))} mph`}
+                        value={`${formatValue(wind.speed)} km/h`}
                     />
                     <QuickMetric
                         label="Gust"
-                        value={`${formatValue(kmhToMph(wind.gust))} mph`}
+                        value={`${formatValue(wind.gust)} km/h`}
                     />
                     <QuickMetric
                         label="Max Daily Gust"
-                        value={`${formatValue(kmhToMph(wind.maxDailyGust))} mph`}
+                        value={`${formatValue(wind.maxDailyGust)} km/h`}
                     />
                     <QuickMetric
                         label="Direction"
@@ -179,31 +162,31 @@ export function QuickView({ data }: QuickViewProps) {
                 <QuickSection title="Rain">
                     <QuickMetric
                         label="Rate"
-                        value={`${formatValue(mmToInches(rainfall.hourly), 2)} in/hr`}
+                        value={`${formatValue(rainfall.hourly, 2)} mm/h`}
                     />
                     <QuickMetric
                         label="Daily"
-                        value={`${formatValue(mmToInches(rainfall.daily), 2)} in`}
+                        value={`${formatValue(rainfall.daily, 2)} mm`}
                     />
                     <QuickMetric
                         label="Weekly"
-                        value={`${formatValue(mmToInches(rainfall.weekly), 2)} in`}
+                        value={`${formatValue(rainfall.weekly, 2)} mm`}
                     />
                     <QuickMetric
                         label="Event"
-                        value={`${formatValue(mmToInches(rainfall.event), 2)} in`}
+                        value={`${formatValue(rainfall.event, 2)} mm`}
                     />
                     <QuickMetric
                         label="Monthly"
-                        value={`${formatValue(mmToInches(rainfall.monthly), 2)} in`}
+                        value={`${formatValue(rainfall.monthly, 2)} mm`}
                     />
                     <QuickMetric
                         label="Yearly"
-                        value={`${formatValue(mmToInches(rainfall.yearly), 2)} in`}
+                        value={`${formatValue(rainfall.yearly, 2)} mm`}
                     />
                     <QuickMetric
                         label="Total"
-                        value={`${formatValue(mmToInches(rainfall.total), 2)} in`}
+                        value={`${formatValue(rainfall.total, 2)} mm`}
                     />
                 </QuickSection>
 
@@ -211,14 +194,14 @@ export function QuickView({ data }: QuickViewProps) {
                     <QuickSection title="Pressure">
                         <QuickMetric
                             label="Relative"
-                            value={`${formatValue(hpaToInHg(pressure.relative), 2)} inHg`}
+                            value={`${formatValue(pressure.relative, 1)} hPa`}
                         />
                         <QuickMetric 
                             label="Rate" 
                             value={
                                 data.changes.pressureRate === null
                                     ? "—"
-                                    : `${data.changes.pressureRate > 0 ? "+" : ""}${formatValue(data.changes.pressureRate / 33.8638866667, 3)} inHg/hr`
+                                    : `${data.changes.pressureRate > 0 ? "+" : ""}${formatValue(data.changes.pressureRate, 2)} hPa/hr`
                             }
                         />
                     </QuickSection>

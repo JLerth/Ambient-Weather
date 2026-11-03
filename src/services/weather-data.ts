@@ -164,6 +164,29 @@ function addDays(date: string, amount: number): string {
     ].join("-");
 }
 
+function calculateDewPoint(
+    temperatureC: number,
+    humidity: number
+): number | null {
+    if (
+        !Number.isFinite(temperatureC) ||
+        !Number.isFinite(humidity) ||
+        humidity <= 0 ||
+        humidity > 100
+    ) {
+        return null;
+    }
+
+    const a = 17.27;
+    const b = 237.7;
+
+    const alpha =
+        (a * temperatureC) / (b + temperatureC) +
+        Math.log(humidity / 100);
+
+    return roundValue((b * alpha) / (a - alpha), 1);
+}
+
 /**
  * Obtiene los datos meteorológicos preparados para el dashboard.
  */
@@ -232,7 +255,12 @@ export async function getWeatherData(): Promise<WeatherDashboardData> {
                 ? roundValue(fahrenheitToCelsius(raw.feelsLike))
                 : null,
 
-            dewPoint: null,
+            dewPoint: raw.tempf !== undefined && raw.humidity !== undefined
+            ? calculateDewPoint(
+                fahrenheitToCelsius(raw.tempf),
+                raw.humidity
+            )
+            : null,
         },
 
         wind: {
