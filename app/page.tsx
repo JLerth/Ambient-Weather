@@ -1,6 +1,7 @@
 "use client";
 
 import { useWeatherData } from "@/src/hook/use-weather-data";
+import { useAccuWeather } from "@/src/hook/use-accuweather";
 
 import { QuickView } from "@/src/components/weather/quick-view";
 import { Outdoor } from "@/src/components/weather/outdoor";
@@ -9,8 +10,19 @@ import { Rainfall } from "@/src/components/weather/rainfall";
 import { Humidity } from "@/src/components/weather/humidity";
 import { Pressure } from "@/src/components/weather/pressure";
 
+import { SunMoon } from "@/src/components/weather/sun-moon";
+import { Forecast } from "@/src/components/weather/forecast";
+
 export default function Home() {
-    const { data, loading, error, refresh } = useWeatherData();
+    const { data, loading, error, refresh} = useWeatherData();
+    const {
+        data: sunMoonData,
+        dailyData,
+        hourlyData,
+        loading: sunMoonLoading,
+        error: sunMoonError,
+        refresh: refreshSunMoon,
+    } = useAccuWeather();
 
     if (loading) {
         return (
@@ -52,6 +64,18 @@ export default function Home() {
 
             <details className="rounded-xl border">
                 <summary className="cursor-pointer p-4 font-semibold">
+                    Forecast
+                </summary>
+                <div className="p-4 pt-0">
+                    <Forecast
+                        hourlyData={hourlyData}
+                        dailyData={dailyData}
+                    />
+                </div>
+            </details>
+
+            <details className="rounded-xl border">
+                <summary className="cursor-pointer p-4 font-semibold">
                     Wind
                 </summary>
                 <div className="p-4 pt-0">
@@ -66,6 +90,36 @@ export default function Home() {
                 <div className="p-4 pt-0">
                     <Rainfall data={data} />
                 </div>
+            </details>
+
+            <details className="rounded-xl border">
+                <summary className="cursor-pointer p-4 font-semibold">
+                    Sun-Moon
+                </summary>
+                    <div className="p-4 pt-0">
+                        {sunMoonLoading && (
+                            <p className="text-sm text-muted-foreground">
+                                Cargando datos del Sol y la Luna...
+                            </p>
+                        )}
+
+                        {sunMoonError && (
+                            <div className="text-sm text-red-500">
+                                <p>{sunMoonError}</p>
+
+                                <button
+                                    onClick={refreshSunMoon}
+                                    className="mt-2 rounded-lg border px-3 py-2"
+                                >
+                                    Reintentar
+                                </button>
+                            </div>
+                        )}
+
+                        {sunMoonData && !sunMoonLoading && (
+                            <SunMoon data={sunMoonData} />
+                        )}
+                    </div>
             </details>
 
             <details className="rounded-xl border">
