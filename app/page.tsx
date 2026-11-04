@@ -1,4 +1,5 @@
 "use client";
+import { useState } from "react";
 
 import { useWeatherData } from "@/src/hook/use-weather-data";
 import { useAccuWeather } from "@/src/hook/use-accuweather";
@@ -14,51 +15,119 @@ import { SunMoon } from "@/src/components/weather/sun-moon";
 import { Forecast } from "@/src/components/weather/forecast";
 
 export default function Home() {
-    const { data, loading, error, refresh} = useWeatherData();
+    const {
+        currentData: data,
+        historicalData,
+        yesterdayData,
+        pressureChangeData,
+        loading,
+        currentError,
+        historicalError,
+        yesterdayError,
+        pressureChangeError,
+        retryFailed,
+    } = useWeatherData();
+
     const {
         data: sunMoonData,
         dailyData,
         hourlyData,
         loading: sunMoonLoading,
-        error: sunMoonError,
-        refresh: refreshSunMoon,
+        dailyError,
+        hourlyError,
+        retryFailed: retryFailedSunMoon,
     } = useAccuWeather();
 
-    if (loading) {
-        return (
-            <main className="p-4">
-                <p className="text-sm text-muted-foreground">
-                    Cargando datos meteorológicos...
-                </p>
-            </main>
-        );
-    }
+    const [retrying, setRetrying] = useState(false);
 
-    if (error || !data) {
-        return (
-            <main className="p-4">
-                <p className="text-sm text-red-500">
-                    {error ?? "No se pudieron cargar los datos meteorológicos."}
-                </p>
+    const ambientHasError = Boolean(
+        currentError ||
+        historicalError ||
+        yesterdayError ||
+        pressureChangeError
+    );
 
-                <button
-                    onClick={refresh}
-                    className="mt-3 rounded-lg border px-4 py-2 text-sm"
-                >
-                    Reintentar
-                </button>
-            </main>
-        );
-    }
+    const handleRetry = async () => {
+        if (retrying) return;
+
+        setRetrying(true);
+
+        try {
+            const tasks: Promise<void>[] = [];
+
+            // Ambient Weather: únicamente los bloques fallidos.
+            if (ambientHasError) {
+                tasks.push(retryFailed());
+            }
+
+            // AccuWeather: únicamente los bloques fallidos.
+            if (dailyError || hourlyError) {
+                tasks.push(retryFailedSunMoon());
+            }
+
+            await Promise.all(tasks);
+        } finally {
+            setRetrying(false);
+        }
+    };
 
     return (
         <main className="space-y-3 p-4">
+            {ambientHasError && (
+                <div className="rounded-lg border border-red-500/30 p-3 text-sm text-red-500">
+                    <p className="font-semibold">
+                        Problemas al actualizar Ambient Weather:
+                    </p>
+
+                    {currentError && <p>Datos actuales: {currentError}</p>}
+                    {historicalError && <p>Históricos: {historicalError}</p>}
+                    {yesterdayError && <p>Datos de ayer: {yesterdayError}</p>}
+                    {pressureChangeError && <p>Cambio de presión: {pressureChangeError}</p>}
+
+                    <p>Se conservan los últimos datos disponibles.</p>
+                </div>
+            )}
+            {(dailyError || hourlyError) && (
+                <div className="rounded-lg border border-red-500/30 p-3 text-sm text-red-500">
+                    <p>Problemas al actualizar AccuWeather:</p>
+
+                    {dailyError && <p>{dailyError}</p>}
+                    {hourlyError && <p>{hourlyError}</p>}
+
+                    <p>Se muestran los últimos datos disponibles.</p>
+                </div>
+            )}
+
+            {(ambientHasError || dailyError || hourlyError) && (
+                <button
+                    type="button"
+                    onClick={handleRetry}
+                    disabled={retrying}
+                    className="rounded-lg border px-4 py-2 text-sm disabled:opacity-50"
+                >
+                    {retrying ? "Reintentando..." : "Reintentar"}
+                </button>
+            )}
+
             <details open className="rounded-xl border">
                 <summary className="cursor-pointer p-4 font-semibold">
                     Quick View
                 </summary>
                 <div className="p-4 pt-0">
-                    <QuickView data={data} />
+                    {data ? (
+                        <QuickView
+                            current={data}
+                            historical={historicalData}
+                            yesterday={yesterdayData}
+                            pressureChange={pressureChangeData}
+                        />
+                    ) : (
+                        <p className="text-sm text-muted-foreground">
+                            {loading
+                                ? "Cargando datos meteorológicos..."
+                                : "No hay datos meteorológicos disponibles."}
+                        </p>
+                    )}
                 </div>
             </details>
 
@@ -79,7 +148,15 @@ export default function Home() {
                     Wind
                 </summary>
                 <div className="p-4 pt-0">
-                    <Wind data={data} />
+                    {data ? (
+                        <Wind data={data} />
+                    ) : (
+                        <p className="text-sm text-muted-foreground">
+                            {loading
+                                ? "Cargando datos meteorológicos..."
+                                : "No hay datos meteorológicos disponibles."}
+                        </p>
+                    )}
                 </div>
             </details>
 
@@ -88,7 +165,15 @@ export default function Home() {
                     Rainfall
                 </summary>
                 <div className="p-4 pt-0">
-                    <Rainfall data={data} />
+                    {data ? (
+                        <Rainfall data={data} />
+                    ) : (
+                        <p className="text-sm text-muted-foreground">
+                            {loading
+                                ? "Cargando datos meteorológicos..."
+                                : "No hay datos meteorológicos disponibles."}
+                        </p>
+                    )}
                 </div>
             </details>
 
@@ -97,27 +182,16 @@ export default function Home() {
                     Sun-Moon
                 </summary>
                     <div className="p-4 pt-0">
-                        {sunMoonLoading && (
+                        {sunMoonLoading ? (
                             <p className="text-sm text-muted-foreground">
                                 Cargando datos del Sol y la Luna...
                             </p>
-                        )}
-
-                        {sunMoonError && (
-                            <div className="text-sm text-red-500">
-                                <p>{sunMoonError}</p>
-
-                                <button
-                                    onClick={refreshSunMoon}
-                                    className="mt-2 rounded-lg border px-3 py-2"
-                                >
-                                    Reintentar
-                                </button>
-                            </div>
-                        )}
-
-                        {sunMoonData && !sunMoonLoading && (
+                        ) : sunMoonData ? (
                             <SunMoon data={sunMoonData} />
+                        ) : (
+                            <p className="text-sm text-muted-foreground">
+                                No hay datos del Sol y la Luna disponibles.
+                            </p>
                         )}
                     </div>
             </details>
@@ -127,7 +201,23 @@ export default function Home() {
                     Outdoor
                 </summary>
                 <div className="p-4 pt-0">
-                    <Outdoor data={data} />
+                    {data ? (
+                        <Outdoor
+                            data={{
+                                outdoor: data.outdoor,
+                                changes: {
+                                    temperatureFromYesterday:
+                                        yesterdayData?.temperatureFromYesterday ?? null,
+                                },
+                            }}
+                        />
+                    ) : (
+                        <p className="text-sm text-muted-foreground">
+                            {loading
+                                ? "Cargando datos meteorológicos..."
+                                : "No hay datos meteorológicos disponibles."}
+                        </p>
+                    )}
                 </div>
             </details>
 
@@ -136,7 +226,23 @@ export default function Home() {
                     Humidity
                 </summary>
                 <div className="p-4 pt-0">
-                    <Humidity data={data} />
+                    {data ? (
+                        <Humidity
+                            data={{
+                                humidity: data.humidity,
+                                changes: {
+                                    humidityFromYesterday:
+                                        yesterdayData?.humidityFromYesterday ?? null,
+                                },
+                            }}
+                        />
+                    ) : (
+                        <p className="text-sm text-muted-foreground">
+                            {loading
+                                ? "Cargando datos meteorológicos..."
+                                : "No hay datos meteorológicos disponibles."}
+                        </p>
+                    )}
                 </div>
             </details>
 
@@ -145,7 +251,22 @@ export default function Home() {
                     Pressure
                 </summary>
                 <div className="p-4 pt-0">
-                    <Pressure data={data} />
+                    {data ? (
+                        <Pressure
+                            data={{
+                                pressure: data.pressure,
+                                changes: {
+                                    pressureRate: pressureChangeData?.pressureRate ?? null,
+                                },
+                            }}
+                        />
+                    ) : (
+                        <p className="text-sm text-muted-foreground">
+                            {loading
+                                ? "Cargando datos meteorológicos..."
+                                : "No hay datos meteorológicos disponibles."}
+                        </p>
+                    )}
                 </div>
             </details>
         </main>
