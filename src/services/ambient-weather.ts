@@ -70,7 +70,7 @@ async function fetchDeviceData<T>(
 
     const result: { data?: T[] } = await response.json();
 
-    if (!result.data) {
+    if (!result.data || result.data.length === 0) {
         throw new Error(`La consulta ${dataKey} no devolvió datos.`);
     }
 
@@ -108,7 +108,12 @@ export async function getStation(signal?: AbortSignal): Promise<StationDevice> {
         throw new Error("No se encontró la estación configurada.");
     }
 
-    if (!station.lastData) {
+    if (
+        !station.lastData ||
+        !Object.values(station.lastData).some(
+            (value) => typeof value === "number" && Number.isFinite(value)
+        )
+    ) {
         throw new Error("La estación no contiene mediciones actuales.");
     }
 

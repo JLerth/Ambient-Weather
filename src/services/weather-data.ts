@@ -188,60 +188,11 @@ function calculateDewPoint(
 }
 
 /**
- * Obtiene los datos meteorológicos preparados para el dashboard.
+ * Obtiene y prepara los datos meteorológicos actuales.
+ * Alimenta Outdoor, Wind, Rainfall, Humidity y Pressure.
  */
-export async function getWeatherData(signal?: AbortSignal): Promise<WeatherDashboardData> {
-    const [raw, summaries, yesterdayData, pressureReadings] = await Promise.all([
-        getCurrentWeather(signal),
-        getDeviceSummaries(signal),
-        getYesterdayData(signal),
-        getPressureLastHour(signal),
-    ]);
-
-    const currentDate = getStationDate(raw.dateutc);
-
-    const yesterdayDate = addDays(currentDate, -1);
-
-    const yesterday = summaries.filter(
-        (item) => getStationDate(item.dateutc) === yesterdayDate
-    );
-
-    // Últimos siete días calendario, incluyendo hoy.
-    const weeklyStartDate = addDays(currentDate, -6);
-
-    const weekly = summaries.filter((item) => {
-        const date = getStationDate(item.dateutc);
-
-        return date >= weeklyStartDate && date <= currentDate;
-    });
-
-    // La fecha del equipo debe interpretarse en la zona horaria de la estación.
-    const currentMonth = currentDate.slice(0, 7);
-
-    const monthly = summaries.filter(
-        (item) => getStationDate(item.dateutc).slice(0, 7) === currentMonth
-    );
-
-    // No calculamos extremos anuales sin cobertura suficiente.
-    const yearly: DeviceSummary[] = [];
-
-    const previousMeasurement = findYesterdayMeasurement(raw, yesterdayData);
-
-    const temperatureFromYesterday =
-        previousMeasurement?.tempf !== undefined &&
-        raw.tempf !== undefined
-            ? roundValue(
-                fahrenheitToCelsius(raw.tempf) -
-                fahrenheitToCelsius(previousMeasurement.tempf),
-                1
-            )
-            : null;
-
-    const humidityFromYesterday =
-        previousMeasurement?.humidity !== undefined &&
-        raw.humidity !== undefined
-            ? roundValue(raw.humidity - previousMeasurement.humidity, 1)
-            : null;
+export async function getCurrentWeatherData(signal?: AbortSignal) {
+    const raw = await getCurrentWeather(signal);
 
     return {
         raw,
@@ -256,11 +207,11 @@ export async function getWeatherData(signal?: AbortSignal): Promise<WeatherDashb
                 : null,
 
             dewPoint: raw.tempf !== undefined && raw.humidity !== undefined
-            ? calculateDewPoint(
-                fahrenheitToCelsius(raw.tempf),
-                raw.humidity
-            )
-            : null,
+                ? calculateDewPoint(
+                    fahrenheitToCelsius(raw.tempf),
+                    raw.humidity
+                )
+                : null,
         },
 
         wind: {
@@ -324,20 +275,95 @@ export async function getWeatherData(signal?: AbortSignal): Promise<WeatherDashb
                 : null,
         },
 
-        changes: {
-            temperatureFromYesterday,
-            humidityFromYesterday,
-            pressureRate: calculatePressureRate(pressureReadings),
-        },
-
+        dateutc: raw.dateutc,
         historical: {
             today: getTodayTemperatureRange(raw),
+        },
+    };
+}
+
+/**
+ * Obtiene los resúmenes históricos de temperatura.
+ */
+export async function getHistoricalWeatherData(
+    current: WeatherData,
+    signal?: AbortSignal
+) {
+    const summaries = await getDeviceSummaries(signal);
+
+    const currentDate = getStationDate(current.dateutc);
+    const yesterdayDate = addDays(currentDate, -1);
+    const weeklyStartDate = addDays(currentDate, -6);
+    const currentMonth = currentDate.slice(0, 7);
+
+    const yesterday = summaries.filter(
+        (item) => getStationDate(item.dateutc) === yesterdayDate
+    );
+
+    const weekly = summaries.filter((item) => {
+        const date = getStationDate(item.dateutc);
+        return date >= weeklyStartDate && date <= currentDate;
+    });
+
+    const monthly = summaries.filter(
+        (item) => getStationDate(item.dateutc).slice(0, 7) === currentMonth
+    );
+
+    const yearly: DeviceSummary[] = [];
+
+    return {
+        historical: {
             yesterday: getTemperatureRange(yesterday),
             weekly: getTemperatureRange(weekly),
             monthly: getTemperatureRange(monthly),
             yearly: getTemperatureRange(yearly),
         },
+    };
+}
 
-        dateutc: raw.dateutc,
+/**
+ * Obtiene los datos necesarios para comparar con el día anterior.
+ */
+export async function getYesterdayWeatherData(
+    current: WeatherData,
+    signal?: AbortSignal
+) {
+    const yesterdayData = await getYesterdayData(signal);
+
+    const previousMeasurement = findYesterdayMeasurement(
+        current,
+        yesterdayData
+    );
+
+    return {
+        temperatureFromYesterday:
+            previousMeasurement?.tempf !== undefined &&
+            current.tempf !== undefined
+                ? roundValue(
+                    fahrenheitToCelsius(current.tempf) -
+                    fahrenheitToCelsius(previousMeasurement.tempf),
+                    1
+                )
+                : null,
+
+        humidityFromYesterday:
+            previousMeasurement?.humidity !== undefined &&
+            current.humidity !== undefined
+                ? roundValue(
+                    current.humidity - previousMeasurement.humidity,
+                    1
+                )
+                : null,
+    };
+}
+
+/**
+ * Obtiene la variación de presión de la última hora.
+ */
+export async function getPressureChangeData(signal?: AbortSignal) {
+    const pressureReadings = await getPressureLastHour(signal);
+
+    return {
+        pressureRate: calculatePressureRate(pressureReadings),
     };
 }

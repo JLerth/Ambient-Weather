@@ -1,4 +1,3 @@
-
 import type {
     AccuWeatherDailyResponse,
     AccuWeatherHourlyResponse,
@@ -6,6 +5,27 @@ import type {
 
 const API_KEY = process.env.NEXT_PUBLIC_ACCUWEATHER_API_KEY;
 const LOCATION_KEY = process.env.NEXT_PUBLIC_ACCUWEATHER_LOCATION_KEY;
+
+const REQUEST_TIMEOUT = 15 * 1000;
+
+// Combina el signal del hook con un timeout, para que una petición colgada
+// no bloquee para siempre la deduplicación del hook.
+function withTimeout(signal?: AbortSignal) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT);
+    const onAbort = () => controller.abort();
+
+    if (signal?.aborted) controller.abort();
+    signal?.addEventListener("abort", onAbort, { once: true });
+
+    return {
+        signal: controller.signal,
+        clear: () => {
+            clearTimeout(timer);
+            signal?.removeEventListener("abort", onAbort);
+        },
+    };
+}
 
 export async function getAccuWeatherForecast(signal?: AbortSignal): Promise<AccuWeatherDailyResponse> {
     if (!API_KEY || !LOCATION_KEY) {
@@ -23,18 +43,24 @@ export async function getAccuWeatherForecast(signal?: AbortSignal): Promise<Accu
     url.searchParams.set("metric", "true");
     url.searchParams.set("language", "es-ec");
 
-    const response = await fetch(url.toString(), {
-        cache: "no-store",
-        signal,
-    });
+    const request = withTimeout(signal);
 
-    if (!response.ok) {
-        throw new Error(
-            `Error al consultar AccuWeather: ${response.status}`
-        );
+    try {
+        const response = await fetch(url.toString(), {
+            cache: "no-store",
+            signal: request.signal,
+        });
+
+        if (!response.ok) {
+            throw new Error(
+                `Error al consultar AccuWeather: ${response.status}`
+            );
+        }
+
+        return (await response.json()) as AccuWeatherDailyResponse;
+    } finally {
+        request.clear();
     }
-
-    return response.json() as Promise<AccuWeatherDailyResponse>;
 }
 
 export async function getAccuWeatherHourlyForecast(signal?: AbortSignal): Promise<AccuWeatherHourlyResponse> {
@@ -53,16 +79,22 @@ export async function getAccuWeatherHourlyForecast(signal?: AbortSignal): Promis
     url.searchParams.set("metric", "true");
     url.searchParams.set("language", "es-ec");
 
-    const response = await fetch(url.toString(), {
-        cache: "no-store",
-        signal,
-    });
+    const request = withTimeout(signal);
 
-    if (!response.ok) {
-        throw new Error(
-            `Error al consultar el pronóstico horario: ${response.status}`
-        );
+    try {
+        const response = await fetch(url.toString(), {
+            cache: "no-store",
+            signal: request.signal,
+        });
+
+        if (!response.ok) {
+            throw new Error(
+                `Error al consultar el pronóstico horario: ${response.status}`
+            );
+        }
+
+        return (await response.json()) as AccuWeatherHourlyResponse;
+    } finally {
+        request.clear();
     }
-
-    return response.json() as Promise<AccuWeatherHourlyResponse>;
 }
