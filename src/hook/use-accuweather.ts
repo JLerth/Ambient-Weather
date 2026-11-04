@@ -23,17 +23,21 @@ export function useAccuWeather() {
 
     const isRefreshing = useRef(false);
 
-    const refresh = useCallback(async () => {
+    const activeController = useRef<AbortController | null>(null);
+
+    const refresh = useCallback(async (signal?: AbortSignal) => {
         if (isRefreshing.current) return;
         isRefreshing.current = true;
-        
+
         try {
             setError(null);
 
             const [dailyResult, hourlyResult] = await Promise.allSettled([
-                getAccuWeatherForecast(),
-                getAccuWeatherHourlyForecast(),
+                getAccuWeatherForecast(signal),
+                getAccuWeatherHourlyForecast(signal),
             ]);
+
+            if (signal?.aborted) return;
 
             if (dailyResult.status === "fulfilled") {
                 setDailyData(dailyResult.value);
@@ -58,18 +62,34 @@ export function useAccuWeather() {
                 setError(errors.join(" "));
             }
         } finally {
-            setLoading(false);
             isRefreshing.current = false;
+
+            if (!signal?.aborted) {
+                setLoading(false);
+            }
         }
     }, []);
 
     useEffect(() => {
-        refresh();
+        const executeRefresh = () => {
+            if (activeController.current) return;
 
-        const interval = setInterval(refresh, 15 * 60 * 1000);
+            const controller = new AbortController();
+            activeController.current = controller;
+
+            refresh(controller.signal).finally(() => {
+                if (activeController.current === controller) {
+                    activeController.current = null;
+                }
+            });
+        };
+
+        executeRefresh();
+
+        const interval = setInterval(executeRefresh, 15 * 60 * 1000);
 
         const handleOnline = () => {
-            refresh();
+            executeRefresh();
         };
 
         window.addEventListener("online", handleOnline);
@@ -77,6 +97,10 @@ export function useAccuWeather() {
         return () => {
             clearInterval(interval);
             window.removeEventListener("online", handleOnline);
+
+            activeController.current?.abort();
+            activeController.current = null;
+            isRefreshing.current = false;
         };
     }, [refresh]);
 

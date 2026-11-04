@@ -51,6 +51,7 @@ async function fetchDeviceData<T>(
         stats?: string;
         asc?: boolean;
         limit?: number;
+        signal?: AbortSignal;
     }
 ): Promise<T[]> {
     const url = buildDeviceDataUrl(dataKey, start, options);
@@ -58,6 +59,7 @@ async function fetchDeviceData<T>(
     const response = await fetch(url, {
         method: "GET",
         cache: "no-store",
+        signal: options?.signal,
     });
 
     if (!response.ok) {
@@ -79,10 +81,11 @@ async function fetchDeviceData<T>(
 /**
  * Obtiene la información meteorológica de la estación.
  */
-export async function getStation(): Promise<StationDevice> {
+export async function getStation(signal?: AbortSignal): Promise<StationDevice> {
     const response = await fetch(API_URL, {
         method: "GET",
         cache: "no-store",
+        signal,
     });
 
     if (!response.ok) {
@@ -115,8 +118,8 @@ export async function getStation(): Promise<StationDevice> {
 /**
  * Obtiene únicamente las mediciones meteorológicas actuales.
  */
-export async function getCurrentWeather() {
-    const station = await getStation();
+export async function getCurrentWeather(signal?: AbortSignal) {
+    const station = await getStation(signal);
 
     return station.lastData;
 }
@@ -125,7 +128,7 @@ export async function getCurrentWeather() {
  * Obtiene los resúmenes históricos de la estación.
  * Solicita un año de historial.
  */
-export async function getDeviceSummaries(): Promise<DeviceSummary[]> {
+export async function getDeviceSummaries(signal?: AbortSignal): Promise<DeviceSummary[]> {
     const oneYearAgo = Date.now() - 365 * 24 * 60 * 60 * 1000;
 
     return fetchDeviceData<DeviceSummary>(
@@ -133,6 +136,7 @@ export async function getDeviceSummaries(): Promise<DeviceSummary[]> {
         oneYearAgo,
         {
             stats: "summary",
+            signal,
         }
     );
 }
@@ -140,19 +144,20 @@ export async function getDeviceSummaries(): Promise<DeviceSummary[]> {
 /**
  * Obtiene la medición correspondiente al periodo de ayer.
  */
-export async function getYesterdayData(): Promise<WeatherData[]> {
+export async function getYesterdayData(signal?: AbortSignal): Promise<WeatherData[]> {
     const yesterday = Date.now() - 24 * 60 * 60 * 1000;
 
     return fetchDeviceData<WeatherData>(
         "yesterdayData",
-        yesterday
+        yesterday,
+        {signal}
     );
 }
 
 /**
  * Obtiene la medición del periodo de presión de la última hora.
  */
-export async function getPressureLastHour(): Promise<WeatherData[]> {
+export async function getPressureLastHour(signal?: AbortSignal): Promise<WeatherData[]> {
     const oneHourAgo = Date.now() - 60 * 60 * 1000;
 
     return fetchDeviceData<WeatherData>(
@@ -161,6 +166,7 @@ export async function getPressureLastHour(): Promise<WeatherData[]> {
         {
             asc: true,
             limit: 20,
+            signal,
         }
     );
 }

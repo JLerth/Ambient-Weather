@@ -16,8 +16,9 @@ export function useWeatherData(): UseWeatherDataReturn {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const isRefreshing = useRef(false);
+    const activeController = useRef<AbortController | null>(null);
 
-    const refresh = useCallback(async () => {
+    const refresh = useCallback(async (signal?: AbortSignal) => {
         if (isRefreshing.current) return;
 
         isRefreshing.current = true;
@@ -25,28 +26,48 @@ export function useWeatherData(): UseWeatherDataReturn {
         try {
             setError(null);
 
-            const weatherData = await getWeatherData();
+            const weatherData = await getWeatherData(signal);
 
-            setData(weatherData);
+            if (!signal?.aborted) {
+                setData(weatherData);
+            }
         } catch (err) {
+            if (signal?.aborted) return;
+
             setError(
                 err instanceof Error
                     ? err.message
                     : "No se pudieron obtener los datos meteorológicos."
             );
         } finally {
-            setLoading(false);
             isRefreshing.current = false;
+
+            if (!signal?.aborted) {
+                setLoading(false);
+            }
         }
     }, []);
 
     useEffect(() => {
-        refresh();
+        const executeRefresh = () => {
+            if (activeController.current) return;
 
-        const interval = setInterval(refresh, 5 * 60 * 1000);
+            const controller = new AbortController();
+            activeController.current = controller;
+
+            refresh(controller.signal).finally(() => {
+                if (activeController.current === controller) {
+                    activeController.current = null;
+                }
+            });
+        };
+
+        executeRefresh();
+
+        const interval = setInterval(executeRefresh, 5 * 60 * 1000);
 
         const handleOnline = () => {
-            refresh();
+            executeRefresh();
         };
 
         window.addEventListener("online", handleOnline);
@@ -54,6 +75,10 @@ export function useWeatherData(): UseWeatherDataReturn {
         return () => {
             clearInterval(interval);
             window.removeEventListener("online", handleOnline);
+
+            activeController.current?.abort();
+            activeController.current = null;
+            isRefreshing.current = false;
         };
     }, [refresh]);
 

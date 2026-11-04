@@ -190,12 +190,12 @@ function calculateDewPoint(
 /**
  * Obtiene los datos meteorológicos preparados para el dashboard.
  */
-export async function getWeatherData(): Promise<WeatherDashboardData> {
+export async function getWeatherData(signal?: AbortSignal): Promise<WeatherDashboardData> {
     const [raw, summaries, yesterdayData, pressureReadings] = await Promise.all([
-        getCurrentWeather(),
-        getDeviceSummaries(),
-        getYesterdayData(),
-        getPressureLastHour(),
+        getCurrentWeather(signal),
+        getDeviceSummaries(signal),
+        getYesterdayData(signal),
+        getPressureLastHour(signal),
     ]);
 
     const currentDate = getStationDate(raw.dateutc);

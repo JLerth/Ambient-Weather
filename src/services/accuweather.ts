@@ -7,7 +7,7 @@ import type {
 const API_KEY = process.env.NEXT_PUBLIC_ACCUWEATHER_API_KEY;
 const LOCATION_KEY = process.env.NEXT_PUBLIC_ACCUWEATHER_LOCATION_KEY;
 
-export async function getAccuWeatherForecast(): Promise<AccuWeatherDailyResponse> {
+export async function getAccuWeatherForecast(signal?: AbortSignal): Promise<AccuWeatherDailyResponse> {
     if (!API_KEY || !LOCATION_KEY) {
         throw new Error(
             "Falta configurar las credenciales de AccuWeather."
@@ -25,6 +25,7 @@ export async function getAccuWeatherForecast(): Promise<AccuWeatherDailyResponse
 
     const response = await fetch(url.toString(), {
         cache: "no-store",
+        signal,
     });
 
     if (!response.ok) {
@@ -36,7 +37,7 @@ export async function getAccuWeatherForecast(): Promise<AccuWeatherDailyResponse
     return response.json() as Promise<AccuWeatherDailyResponse>;
 }
 
-export async function getAccuWeatherHourlyForecast(): Promise<AccuWeatherHourlyResponse> {
+export async function getAccuWeatherHourlyForecast(signal?: AbortSignal): Promise<AccuWeatherHourlyResponse> {
     if (!API_KEY || !LOCATION_KEY) {
         throw new Error(
             "Falta configurar las credenciales de AccuWeather."
@@ -54,6 +55,7 @@ export async function getAccuWeatherHourlyForecast(): Promise<AccuWeatherHourlyR
 
     const response = await fetch(url.toString(), {
         cache: "no-store",
+        signal,
     });
 
     if (!response.ok) {
