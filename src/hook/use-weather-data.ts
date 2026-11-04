@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import { getWeatherData } from "@/src/services/weather-data";
 import type { WeatherDashboardData } from "@/src/types/ambient-weather";
 
@@ -15,8 +15,13 @@ export function useWeatherData(): UseWeatherDataReturn {
     const [data, setData] = useState<WeatherDashboardData | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const isRefreshing = useRef(false);
 
     const refresh = useCallback(async () => {
+        if (isRefreshing.current) return;
+
+        isRefreshing.current = true;
+
         try {
             setError(null);
 
@@ -31,17 +36,25 @@ export function useWeatherData(): UseWeatherDataReturn {
             );
         } finally {
             setLoading(false);
+            isRefreshing.current = false;
         }
     }, []);
 
     useEffect(() => {
         refresh();
 
-        const interval = setInterval(() => {
-            refresh();
-        }, 5 * 60 * 1000);
+        const interval = setInterval(refresh, 5 * 60 * 1000);
 
-        return () => clearInterval(interval);
+        const handleOnline = () => {
+            refresh();
+        };
+
+        window.addEventListener("online", handleOnline);
+
+        return () => {
+            clearInterval(interval);
+            window.removeEventListener("online", handleOnline);
+        };
     }, [refresh]);
 
     return {
