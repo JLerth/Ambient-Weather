@@ -1,8 +1,7 @@
-
 import type { WeatherDashboardData } from "@/src/types/ambient-weather";
 
 interface WindProps {
-    data: WeatherDashboardData;
+    data: Pick<WeatherDashboardData, "wind">;
 }
 
 function formatValue(value: number | null, decimals = 1): string {

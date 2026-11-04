@@ -1,7 +1,52 @@
 import type { WeatherDashboardData } from "@/src/types/ambient-weather";
 
 interface QuickViewProps {
-    data: WeatherDashboardData;
+    current: {
+        outdoor: {
+            temperature: number | null;
+            feelsLike: number | null;
+        };
+        wind: {
+            speed: number | null;
+            gust: number | null;
+            maxDailyGust: number | null;
+            direction: number | null;
+            averageDirection: number | null;
+        };
+        rainfall: {
+            hourly: number | null;
+            daily: number | null;
+            weekly: number | null;
+            event: number | null;
+            monthly: number | null;
+            yearly: number | null;
+            total: number | null;
+        };
+        pressure: {
+            relative: number | null;
+        };
+        humidity: {
+            current: number | null;
+        };
+        historical: {
+            today: { high: number | null; low: number | null };
+        };
+    };
+    historical: {
+        historical: {
+            yesterday: { high: number | null; low: number | null };
+            weekly: { high: number | null; low: number | null };
+            monthly: { high: number | null; low: number | null };
+            yearly: { high: number | null; low: number | null };
+        };
+    } | null;
+    yesterday: {
+        temperatureFromYesterday: number | null;
+        humidityFromYesterday: number | null;
+    } | null;
+    pressureChange: {
+        pressureRate: number | null;
+    } | null;
 }
 
 function formatValue(value: number | null | undefined, decimals = 1): string {
@@ -60,8 +105,15 @@ function QuickMetric({
     );
 }
 
-export function QuickView({ data }: QuickViewProps) {
-    const { outdoor, wind, rainfall, pressure, humidity, historical } = data;
+export function QuickView({
+    current,
+    historical,
+    yesterday,
+    pressureChange,
+}: QuickViewProps) {
+    const { outdoor, wind, rainfall, pressure, humidity } = current;
+
+    const historicalData = historical?.historical;
 
     return (
         <div className="space-y-4">
@@ -76,9 +128,9 @@ export function QuickView({ data }: QuickViewProps) {
                     <QuickMetric 
                         label="From Yesterday" 
                         value={
-                            data.changes.temperatureFromYesterday === null
+                            yesterday?.temperatureFromYesterday == null
                                 ? "—"
-                                : `${data.changes.temperatureFromYesterday > 0 ? "+" : ""}${formatValue(data.changes.temperatureFromYesterday)}°C`
+                                : `${yesterday.temperatureFromYesterday > 0 ? "+" : ""}${formatValue(yesterday.temperatureFromYesterday)}°C`
                         }
                     />
                     <QuickMetric
@@ -89,8 +141,8 @@ export function QuickView({ data }: QuickViewProps) {
                         label="Today's High/Low"
                         value={
                             <TemperatureRange
-                                high={historical.today.high}
-                                low={historical.today.low}
+                                high={current.historical.today.high}
+                                low={current.historical.today.low}
                             />
                         }
                     />
@@ -98,8 +150,8 @@ export function QuickView({ data }: QuickViewProps) {
                         label="Yesterday's High/Low"
                         value={
                             <TemperatureRange
-                                high={historical.yesterday.high}
-                                low={historical.yesterday.low}
+                                high={historicalData?.yesterday.high ?? null}
+                                low={historicalData?.yesterday.low ?? null}
                             />
                         }
                     />
@@ -107,8 +159,8 @@ export function QuickView({ data }: QuickViewProps) {
                         label="Weekly High/Low"
                         value={
                             <TemperatureRange
-                                high={historical.weekly.high}
-                                low={historical.weekly.low}
+                                high={historicalData?.weekly.high ?? null}
+                                low={historicalData?.weekly.low ?? null}
                             />
                         }
                     />
@@ -116,8 +168,8 @@ export function QuickView({ data }: QuickViewProps) {
                         label="Monthly High/Low"
                         value={
                             <TemperatureRange
-                                high={historical.monthly.high}
-                                low={historical.monthly.low}
+                                high={historicalData?.monthly.high ?? null}
+                                low={historicalData?.monthly.low ?? null}
                             />
                         }
                     />
@@ -125,8 +177,8 @@ export function QuickView({ data }: QuickViewProps) {
                         label="Yearly High/Low"
                         value={
                             <TemperatureRange
-                                high={historical.yearly.high}
-                                low={historical.yearly.low}
+                                high={historicalData?.yearly.high ?? null}
+                                low={historicalData?.yearly.low ?? null}
                             />
                         }
                     />
@@ -199,9 +251,9 @@ export function QuickView({ data }: QuickViewProps) {
                         <QuickMetric 
                             label="Rate" 
                             value={
-                                data.changes.pressureRate === null
+                                pressureChange?.pressureRate == null
                                     ? "—"
-                                    : `${data.changes.pressureRate > 0 ? "+" : ""}${formatValue(data.changes.pressureRate, 2)} hPa/hr`
+                                    : `${pressureChange.pressureRate > 0 ? "+" : ""}${formatValue(pressureChange.pressureRate, 2)} hPa/hr`
                             }
                         />
                     </QuickSection>
@@ -218,9 +270,9 @@ export function QuickView({ data }: QuickViewProps) {
                         <QuickMetric 
                         label="From Yesterday" 
                         value={
-                            data.changes.humidityFromYesterday === null
+                            yesterday?.humidityFromYesterday == null
                                 ? "—"
-                                : `${data.changes.humidityFromYesterday > 0 ? "+" : ""}${formatValue(data.changes.humidityFromYesterday, 0)}%`
+                                : `${yesterday.humidityFromYesterday > 0 ? "+" : ""}${formatValue(yesterday.humidityFromYesterday, 0)}%`
                         }
                         />
                     </QuickSection>

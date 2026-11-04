@@ -1,7 +1,14 @@
 import type { WeatherDashboardData } from "@/src/types/ambient-weather";
 
 interface PressureProps {
-    data: WeatherDashboardData;
+    data: {
+        pressure: {
+            relative: number | null;
+        };
+        changes: {
+            pressureRate: number | null;
+        };
+    };
 }
 
 function formatValue(value: number | null, decimals = 1): string {

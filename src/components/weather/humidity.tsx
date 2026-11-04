@@ -1,7 +1,14 @@
 import type { WeatherDashboardData } from "@/src/types/ambient-weather";
 
 interface HumidityProps {
-    data: WeatherDashboardData;
+    data: {
+        humidity: {
+            current: number | null;
+        };
+        changes: {
+            humidityFromYesterday: number | null;
+        };
+    };
 }
 
 function formatValue(value: number | null): string {

@@ -1,7 +1,7 @@
 import type { WeatherDashboardData } from "@/src/types/ambient-weather";
 
 interface RainfallProps {
-    data: WeatherDashboardData;
+    data: Pick<WeatherDashboardData, "rainfall" | "raw">;
 }
 
 function formatValue(value: number | null, decimals = 2): string {

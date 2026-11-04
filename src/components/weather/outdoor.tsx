@@ -1,7 +1,16 @@
 import type { WeatherDashboardData } from "@/src/types/ambient-weather";
 
 interface OutdoorProps {
-    data: WeatherDashboardData;
+    data: {
+        outdoor: {
+            temperature: number | null;
+            feelsLike: number | null;
+            dewPoint: number | null;
+        };
+        changes: {
+            temperatureFromYesterday: number | null;
+        };
+    };
 }
 
 function formatValue(value: number | null, decimals = 1): string {
